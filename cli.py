@@ -1,18 +1,17 @@
 import click
 import pandas as pd
 
-import utils.plot_utils as plot_utils
-from utils.read_utils import (
-    read_dinosaurs,
-    read_dinosaurs_by_properties,
-    stringify_dinosaur,
-)
+from utils import Reader, Plotter
 
 
 def validate_output(ctx, param, value):
     if value and not value.endswith(".csv"):
         raise click.BadParameter("Output file must be a csv file.")
     return value
+
+
+def stringify_dinosaur(dinosaur):
+    return f"{dinosaur['name'].capitalize()} lived in the {dinosaur['period']} period and was a {dinosaur['diet']}. It was {dinosaur['length']} meters long. It lived in {dinosaur['lived_in']}. It was a {dinosaur['type']} and was a {dinosaur['species']}."
 
 
 @click.command()
@@ -74,33 +73,37 @@ def cli(
     print_dinosaurs: bool,
     output: str,
 ):
-    if property_value_pairs:
-        property_value_dict = dict(property_value_pairs)
-        dinosaurs = read_dinosaurs_by_properties(property_value_dict)
-    else:
-        dinosaurs = read_dinosaurs()
+    try:
+        if property_value_pairs:
+            property_value_dict = dict(property_value_pairs)
+            dinosaurs = Reader.read_dinosaurs_by_properties(property_value_dict)
+        else:
+            dinosaurs = Reader.read_dinosaurs()
 
-    if not dinosaurs:
-        click.echo("No dinosaurs found.")
-        return
+        if not dinosaurs:
+            click.echo("No dinosaurs found.")
+            return
 
-    if sort_by:
-        dinosaurs = sorted(dinosaurs, key=lambda dino: dino[sort_by])
+        if sort_by:
+            dinosaurs = sorted(dinosaurs, key=lambda dino: dino[sort_by])
 
-    if print_dinosaurs:
-        for dinosaur in dinosaurs:
-            click.echo(stringify_dinosaur(dinosaur))
+        if print_dinosaurs:
+            for dinosaur in dinosaurs:
+                click.echo(stringify_dinosaur(dinosaur))
 
-    if plot_name:
-        df = pd.DataFrame(dinosaurs)
-        plot_func = getattr(plot_utils, plot_name)
-        plot_func(df)
+        if plot_name:
+            df = pd.DataFrame(dinosaurs)
+            plot_func = getattr(Plotter, plot_name)
+            plot_func(df)
 
-    if output:
-        df = pd.DataFrame(dinosaurs)
-        df.to_csv(output, index=False)
+        if output:
+            df = pd.DataFrame(dinosaurs)
+            df.to_csv(output, index=False)
 
-    return dinosaurs
+        return dinosaurs
+    except Exception as e:
+        click.echo(f"Error: {e}")
+        exit(1)
 
 
 if __name__ == "__main__":
